@@ -19,6 +19,7 @@ import SpecialtyCard from '@/components/SpecialtyCard';
 import DoctorCard from '@/components/DoctorCard';
 import { useAppointment } from '@/context/AppointmentContext';
 import { toast } from '@/hooks/use-toast';
+import { TimeSlot } from '@/types';
 
 const steps = [
   { id: 1, name: 'Especialidad' },
@@ -45,6 +46,7 @@ const NewAppointment: React.FC = () => {
   
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   
   // Filtrar médicos por la especialidad seleccionada
   const filteredDoctors = selectedSpecialty 
@@ -79,6 +81,7 @@ const NewAppointment: React.FC = () => {
       if (selectedDoctor && selectedDate) {
         await getAvailableSlots(selectedDoctor.id, selectedDate);
         setSelectedTime(null); // Resetear el horario seleccionado
+        setSelectedSlot(null); // Resetear el slot seleccionado
       }
     };
     
@@ -107,7 +110,7 @@ const NewAppointment: React.FC = () => {
         return;
       }
       
-      if (currentStep === 3 && !selectedTime) {
+      if (currentStep === 3 && !selectedSlot) {
         toast({
           title: "Error",
           description: "Por favor, seleccione un horario disponible",
@@ -122,31 +125,19 @@ const NewAppointment: React.FC = () => {
     }
   };
   
+  // Seleccionar horario
+  const handleTimeSelection = (time: string, slot: TimeSlot) => {
+    setSelectedTime(time);
+    setSelectedSlot(slot);
+  };
+  
   // Confirmar la reserva del turno
   const handleConfirmAppointment = async () => {
     try {
-      if (!selectedSpecialty || !selectedDoctor || !selectedDate || !selectedTime) {
+      if (!selectedSpecialty || !selectedDoctor || !selectedDate || !selectedSlot) {
         toast({
           title: "Error",
           description: "Por favor, complete todos los pasos necesarios",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      // Buscar el slot seleccionado
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      const appointmentDateTime = new Date(selectedDate);
-      appointmentDateTime.setHours(hours, minutes, 0, 0);
-      
-      const selectedSlot = availableSlots.find(slot => 
-        format(new Date(slot.date), 'HH:mm') === selectedTime
-      );
-      
-      if (!selectedSlot) {
-        toast({
-          title: "Error",
-          description: "El horario seleccionado ya no está disponible",
           variant: "destructive"
         });
         return;
@@ -240,16 +231,19 @@ const NewAppointment: React.FC = () => {
                 {selectedDate ? (
                   Object.keys(groupedSlots).length > 0 ? (
                     <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                      {Object.keys(groupedSlots).sort().map(time => (
-                        <Button
-                          key={time}
-                          variant={selectedTime === time ? "default" : "outline"}
-                          className={selectedTime === time ? "bg-medical-primary hover:bg-medical-dark" : ""}
-                          onClick={() => setSelectedTime(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
+                      {Object.keys(groupedSlots).sort().map(time => {
+                        const slot = groupedSlots[time][0]; // Tomar el primer slot de ese horario
+                        return (
+                          <Button
+                            key={time}
+                            variant={selectedTime === time ? "default" : "outline"}
+                            className={selectedTime === time ? "bg-medical-primary hover:bg-medical-dark" : ""}
+                            onClick={() => handleTimeSelection(time, slot)}
+                          >
+                            {time}
+                          </Button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="p-4 text-center border rounded-lg bg-gray-50">
